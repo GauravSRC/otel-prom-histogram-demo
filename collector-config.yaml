@@ -1,0 +1,31 @@
+receivers:
+  prometheus:
+    config:
+      global:
+        scrape_interval: 15s
+        scrape_timeout: 10s
+        scrape_native_histograms: true
+        # enable protobuf scrape if needed
+        scrape_protocols: [ PrometheusProto, OpenMetricsText1.0.0, PrometheusText0.0.4 ]
+      scrape_configs:
+        - job_name: 'my-app'
+          static_configs:
+            - targets: ['app:8000']    # Docker service name
+
+processors:
+  batch:
+    timeout: 10s
+  memory_limiter:
+    limit_mib: 256
+    check_interval: 1s
+
+exporters:
+  logging:
+    loglevel: debug
+
+service:
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [memory_limiter, batch]
+      exporters: [logging]

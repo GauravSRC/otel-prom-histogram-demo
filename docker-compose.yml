@@ -1,0 +1,31 @@
+services:
+  app:
+    image: python:3.11-slim
+    container_name: otel_app
+    volumes:
+      - ./server_histogram.py:/app/server_histogram.py:ro
+    working_dir: /app
+    # runtime install then run app (quick dev mode)
+    command: ["sh", "-c", "pip install --no-cache-dir prometheus_client && python server_histogram.py"]
+    ports:
+      - "8000:8000"
+    restart: on-failure
+    # healthcheck using python (no extra tools required)
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; import socket; \
+        urllib.request.urlopen('http://localhost:8000/metrics', timeout=3).read(); sys.exit(0)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel_collector
+    volumes:
+      - ./collector-config.yaml:/etc/otelcol/config.yaml:ro
+    command: ["--config", "/etc/otelcol/config.yaml"]
+    ports:
+      - "8888:8888" # optional, Collector API
+    depends_on:
+      - app
+    restart: on-failure
